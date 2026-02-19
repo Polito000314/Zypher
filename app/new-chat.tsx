@@ -1,17 +1,6 @@
-import React from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Brand } from '@/constants/brand';
-import { auth, db } from '@/lib/firebase';
+import { Brand } from "@/constants/brand";
+import { auth, db } from "@/lib/firebase";
+import { useRouter } from "expo-router";
 import {
   collection,
   doc,
@@ -21,9 +10,20 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
-  where,
-} from 'firebase/firestore';
+  setDoc
+} from "firebase/firestore";
+import React from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { getChatId } from "../lib/chat";
 
 type UserRow = {
   id: string;
@@ -32,23 +32,19 @@ type UserRow = {
   photoURL?: string;
 };
 
-function makeChatId(a: string, b: string) {
-  return [a, b].sort().join('_');
-}
-
 export default function NewChat() {
   const router = useRouter();
   const uid = auth.currentUser?.uid;
 
   const [loading, setLoading] = React.useState(true);
-  const [qText, setQText] = React.useState('');
+  const [qText, setQText] = React.useState("");
   const [users, setUsers] = React.useState<UserRow[]>([]);
 
   const load = React.useCallback(async () => {
     if (!uid) return;
     setLoading(true);
     // Por simplicidad: trae hasta 50 usuarios por nombre
-    const q = query(collection(db, 'users'), orderBy('name'), limit(50));
+    const q = query(collection(db, "users"), orderBy("name"), limit(50));
     const snap = await getDocs(q);
     const rows = snap.docs
       .filter((d) => d.id !== uid)
@@ -65,29 +61,29 @@ export default function NewChat() {
     const s = qText.trim().toLowerCase();
     if (!s) return users;
     return users.filter((u) => {
-      const n = (u.name || '').toLowerCase();
-      const e = (u.email || '').toLowerCase();
+      const n = (u.name || "").toLowerCase();
+      const e = (u.email || "").toLowerCase();
       return n.includes(s) || e.includes(s);
     });
   }, [users, qText]);
 
   const startChat = async (other: UserRow) => {
     if (!uid) return;
-    const chatId = makeChatId(uid, other.id);
+    const chatId = getChatId(uid, other.id);
 
-    const chatRef = doc(db, 'chats', chatId);
+    const chatRef = doc(db, "chats", chatId);
     const existing = await getDoc(chatRef);
 
     if (!existing.exists()) {
       await setDoc(chatRef, {
         members: [uid, other.id],
-        lastMessage: '',
+        lastMessage: "",
         lastMessageAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       });
     }
 
-    router.replace(`/chat/${chatId}`);
+    router.push(`/chat/${chatId}`);
   };
 
   return (
@@ -125,13 +121,13 @@ export default function NewChat() {
             <Pressable onPress={() => startChat(item)} style={styles.row}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarTxt}>
-                  {(item.name?.[0] || item.email?.[0] || 'U').toUpperCase()}
+                  {(item.name?.[0] || item.email?.[0] || "U").toUpperCase()}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name || 'Usuario'}</Text>
+                <Text style={styles.name}>{item.name || "Usuario"}</Text>
                 <Text style={styles.email} numberOfLines={1}>
-                  {item.email || '—'}
+                  {item.email || "—"}
                 </Text>
               </View>
               <Text style={styles.chev}>›</Text>
@@ -157,14 +153,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
     borderBottomColor: Brand.colors.border,
   },
-  back: { color: Brand.colors.text, fontSize: 22, fontWeight: '900' },
-  h1: { color: Brand.colors.text, fontSize: 18, fontWeight: '900' },
+  back: { color: Brand.colors.text, fontSize: 22, fontWeight: "900" },
+  h1: { color: Brand.colors.text, fontSize: 18, fontWeight: "900" },
 
   searchWrap: { padding: 16, paddingBottom: 6 },
   search: {
@@ -177,14 +173,19 @@ const styles = StyleSheet.create({
     color: Brand.colors.text,
   },
 
-  center: { alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24 },
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 24,
+  },
   muted: { color: Brand.colors.muted },
-  mutedSmall: { color: Brand.colors.subtle, fontSize: 12, textAlign: 'center' },
+  mutedSmall: { color: Brand.colors.subtle, fontSize: 12, textAlign: "center" },
 
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: Brand.colors.card,
     borderWidth: 1,
     borderColor: Brand.colors.border,
@@ -198,11 +199,11 @@ const styles = StyleSheet.create({
     backgroundColor: Brand.colors.card2,
     borderWidth: 1,
     borderColor: Brand.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  avatarTxt: { color: Brand.colors.accent, fontWeight: '900' },
-  name: { color: Brand.colors.text, fontWeight: '900' },
+  avatarTxt: { color: Brand.colors.accent, fontWeight: "900" },
+  name: { color: Brand.colors.text, fontWeight: "900" },
   email: { color: Brand.colors.muted, marginTop: 2 },
   chev: { color: Brand.colors.muted, fontSize: 26, marginLeft: 6 },
 });
