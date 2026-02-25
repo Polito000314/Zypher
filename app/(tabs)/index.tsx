@@ -1,4 +1,16 @@
-import React from 'react';
+import { Brand } from "@/constants/brand";
+import { useLocale } from "@/contexts/LocaleContext";
+import { auth, db } from "@/lib/firebase";
+import { useRouter } from "expo-router";
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+  type DocumentData,
+} from "firebase/firestore";
+import React from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -7,18 +19,7 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Brand } from '@/constants/brand';
-import { auth, db } from '@/lib/firebase';
-import {
-  collection,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-  type DocumentData,
-} from 'firebase/firestore';
+} from "react-native";
 
 type ChatRow = {
   id: string;
@@ -30,6 +31,7 @@ type ChatRow = {
 export default function ChatsTab() {
   const router = useRouter();
   const uid = auth.currentUser?.uid;
+  const { t } = useLocale();
 
   const [loading, setLoading] = React.useState(true);
   const [chats, setChats] = React.useState<ChatRow[]>([]);
@@ -38,19 +40,22 @@ export default function ChatsTab() {
     if (!uid) return;
 
     const q = query(
-      collection(db, 'chats'),
-      where('members', 'array-contains', uid),
-      orderBy('lastMessageAt', 'desc')
+      collection(db, "chats"),
+      where("members", "array-contains", uid),
+      orderBy("lastMessageAt", "desc"),
     );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const rows: ChatRow[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as DocumentData) }));
+        const rows: ChatRow[] = snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as DocumentData),
+        }));
         setChats(rows);
         setLoading(false);
       },
-      () => setLoading(false)
+      () => setLoading(false),
     );
 
     return unsub;
@@ -62,27 +67,33 @@ export default function ChatsTab() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.h1}>Chats</Text>
+          <Text style={styles.h1}>{t("chatsTitle")}</Text>
           <Text style={styles.h2}>Zypher</Text>
         </View>
 
-        <Pressable onPress={() => router.push('/new-chat')} style={styles.newBtn}>
-          <Text style={styles.newBtnTxt}>+ Nuevo</Text>
+        <Pressable
+          onPress={() => router.push("/new-chat")}
+          style={styles.newBtn}
+        >
+          <Text style={styles.newBtnTxt}>{t("newPlus")}</Text>
         </Pressable>
       </View>
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator />
-          <Text style={styles.muted}>Cargando chats…</Text>
+          <Text style={styles.muted}>{t("loadingChats")}</Text>
         </View>
       ) : chats.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>Aún no tienes chats</Text>
-          <Text style={styles.muted}>Crea uno y empieza a conversar.</Text>
+          <Text style={styles.emptyTitle}>{t("noChatsTitle")}</Text>
+          <Text style={styles.muted}>{t("noChatsSubtitle")}</Text>
 
-          <Pressable onPress={() => router.push('/new-chat')} style={styles.primary}>
-            <Text style={styles.primaryTxt}>Iniciar chat</Text>
+          <Pressable
+            onPress={() => router.push("/new-chat")}
+            style={styles.primary}
+          >
+            <Text style={styles.primaryTxt}>{t("startChat")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -97,9 +108,11 @@ export default function ChatsTab() {
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>Chat</Text>
+                <Text style={styles.rowTitle}>{t("chatRowTitle")}</Text>
+
+                {/* ✅ No traducimos mensajes reales; solo el fallback */}
                 <Text numberOfLines={1} style={styles.rowSubtitle}>
-                  {item.lastMessage || 'Sin mensajes aún'}
+                  {item.lastMessage || t("noMessagesYet")}
                 </Text>
               </View>
 
@@ -118,13 +131,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
     borderBottomColor: Brand.colors.border,
   },
-  h1: { color: Brand.colors.text, fontSize: 24, fontWeight: '900' },
+  h1: { color: Brand.colors.text, fontSize: 24, fontWeight: "900" },
   h2: { color: Brand.colors.muted, marginTop: 2 },
   newBtn: {
     backgroundColor: Brand.colors.card,
@@ -134,10 +147,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: Brand.radius.md,
   },
-  newBtnTxt: { color: Brand.colors.accent, fontWeight: '900' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 20 },
-  muted: { color: Brand.colors.muted, textAlign: 'center' },
-  emptyTitle: { color: Brand.colors.text, fontSize: 18, fontWeight: '900' },
+  newBtnTxt: { color: Brand.colors.accent, fontWeight: "900" },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 20,
+  },
+  muted: { color: Brand.colors.muted, textAlign: "center" },
+  emptyTitle: { color: Brand.colors.text, fontSize: 18, fontWeight: "900" },
   primary: {
     marginTop: 12,
     backgroundColor: Brand.colors.primary,
@@ -145,11 +164,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: Brand.radius.md,
   },
-  primaryTxt: { color: 'white', fontWeight: '900' },
+  primaryTxt: { color: "white", fontWeight: "900" },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: Brand.colors.card,
     borderWidth: 1,
     borderColor: Brand.colors.border,
@@ -163,11 +182,11 @@ const styles = StyleSheet.create({
     backgroundColor: Brand.colors.card2,
     borderWidth: 1,
     borderColor: Brand.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  avatarTxt: { color: Brand.colors.accent, fontWeight: '900' },
-  rowTitle: { color: Brand.colors.text, fontWeight: '900' },
+  avatarTxt: { color: Brand.colors.accent, fontWeight: "900" },
+  rowTitle: { color: Brand.colors.text, fontWeight: "900" },
   rowSubtitle: { color: Brand.colors.muted, marginTop: 2 },
   chev: { color: Brand.colors.muted, fontSize: 26, marginLeft: 6 },
 });

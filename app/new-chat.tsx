@@ -1,4 +1,5 @@
 import { Brand } from "@/constants/brand";
+import { useLocale } from "@/contexts/LocaleContext";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "expo-router";
 import {
@@ -9,7 +10,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc
+  setDoc,
 } from "firebase/firestore";
 import React from "react";
 import {
@@ -34,6 +35,7 @@ type UserRow = {
 export default function NewChat() {
   const router = useRouter();
   const uid = auth.currentUser?.uid;
+  const { t } = useLocale();
 
   const [loading, setLoading] = React.useState(true);
   const [qText, setQText] = React.useState("");
@@ -42,12 +44,13 @@ export default function NewChat() {
   const load = React.useCallback(async () => {
     if (!uid) return;
     setLoading(true);
-    // Por simplicidad: trae hasta 50 usuarios por nombre
+
     const q = query(collection(db, "users"), orderBy("name"), limit(50));
     const snap = await getDocs(q);
     const rows = snap.docs
       .filter((d) => d.id !== uid)
       .map((d) => ({ id: d.id, ...(d.data() as any) })) as UserRow[];
+
     setUsers(rows);
     setLoading(false);
   }, [uid]);
@@ -92,7 +95,7 @@ export default function NewChat() {
         <Pressable onPress={() => router.back()}>
           <Text style={styles.back}>←</Text>
         </Pressable>
-        <Text style={styles.h1}>Nuevo chat</Text>
+        <Text style={styles.h1}>{t("newChatTitle")}</Text>
         <View style={{ width: 28 }} />
       </View>
 
@@ -100,7 +103,7 @@ export default function NewChat() {
         <TextInput
           value={qText}
           onChangeText={setQText}
-          placeholder="Buscar por nombre o correo"
+          placeholder={t("searchByNameOrEmail")}
           placeholderTextColor={Brand.colors.subtle}
           style={styles.search}
           autoCapitalize="none"
@@ -110,7 +113,7 @@ export default function NewChat() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator />
-          <Text style={styles.muted}>Cargando usuarios…</Text>
+          <Text style={styles.muted}>{t("loadingUsers")}</Text>
         </View>
       ) : (
         <FlatList
@@ -124,20 +127,25 @@ export default function NewChat() {
                   {(item.name?.[0] || item.email?.[0] || "U").toUpperCase()}
                 </Text>
               </View>
+
               <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name || "Usuario"}</Text>
+                {/* ✅ NO traducimos nombre del usuario; solo el fallback */}
+                <Text style={styles.name}>
+                  {item.name || t("userFallback")}
+                </Text>
                 <Text style={styles.email} numberOfLines={1}>
                   {item.email || "—"}
                 </Text>
               </View>
+
               <Text style={styles.chev}>›</Text>
             </Pressable>
           )}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.muted}>No hay usuarios para mostrar.</Text>
+              <Text style={styles.muted}>{t("noUsersToShow")}</Text>
               <Text style={styles.mutedSmall}>
-                Tip: crea otra cuenta para probar chats entre usuarios.
+                {t("tipCreateAnotherAccount")}
               </Text>
             </View>
           }

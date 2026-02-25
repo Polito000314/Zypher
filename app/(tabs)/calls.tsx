@@ -1,17 +1,19 @@
-import React from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { Brand } from '@/constants/brand';
+import { Brand } from "@/constants/brand";
+import { useLocale } from "@/contexts/LocaleContext";
+import React from "react";
+import { SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 export default function CallsTab() {
+  const { t } = useLocale();
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Text style={styles.h1}>Llamadas</Text>
-        <Text style={styles.p}>
-          Aquí irá tu historial de llamadas y el botón para iniciar videollamada.
-        </Text>
+        <Text style={styles.h1}>{t("callsTitle")}</Text>
+        <Text style={styles.p}>{t("callsDesc")}</Text>
+
         <View style={styles.badge}>
-          <Text style={styles.badgeTxt}>Próximamente</Text>
+          <Text style={styles.badgeTxt}>{t("comingSoon")}</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -21,10 +23,10 @@ export default function CallsTab() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Brand.colors.bg },
   container: { padding: 18, gap: 10 },
-  h1: { color: Brand.colors.text, fontSize: 24, fontWeight: '900' },
+  h1: { color: Brand.colors.text, fontSize: 24, fontWeight: "900" },
   p: { color: Brand.colors.muted, lineHeight: 20 },
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
@@ -32,5 +34,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Brand.colors.border,
   },
-  badgeTxt: { color: Brand.colors.accent, fontWeight: '900' },
+  badgeTxt: { color: Brand.colors.accent, fontWeight: "900" },
 });
