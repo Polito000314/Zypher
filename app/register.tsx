@@ -3,7 +3,11 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { Brand } from "@/constants/brand";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  updateProfile,
+} from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import React from "react";
 import {
@@ -11,53 +15,55 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
-export default function Register() {
+export default function RegisterScreen() {
   const router = useRouter();
+
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [password2, setPassword2] = React.useState("");
+  const [confirm, setConfirm] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  const onRegister = async () => {
-    if (!name.trim()) {
-      Alert.alert("Faltan datos", "Escribe tu nombre.");
-      return;
-    }
-    if (!email.trim() || !password) {
-      Alert.alert("Faltan datos", "Completa correo y contraseña.");
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert("Contraseña débil", "Usa al menos 6 caracteres.");
-      return;
-    }
-    if (password !== password2) {
-      Alert.alert("No coincide", "Las contraseñas no coinciden.");
+  const canSubmit =
+    name.trim().length >= 2 &&
+    email.trim().includes("@") &&
+    password.length >= 6 &&
+    password === confirm;
+
+  const handleRegister = async () => {
+    if (!canSubmit) {
+      Alert.alert(
+        "Revisa tus datos",
+        "Verifica los campos antes de continuar.",
+      );
       return;
     }
 
     try {
       setLoading(true);
+
       const cred = await createUserWithEmailAndPassword(
         auth,
-        email.trim(),
+        email.trim().toLowerCase(),
         password,
       );
 
-      // (Opcional) nombre en Auth
-      await updateProfile(cred.user, { displayName: name.trim() });
+      // ✅ set displayName
+      await updateProfile(cred.user, {
+        displayName: name.trim(),
+      });
 
-      // Perfil en Firestore (base para chats)
+      // ✅ guardar perfil en Firestore
       await setDoc(doc(db, "users", cred.user.uid), {
+        uid: cred.user.uid,
         name: name.trim(),
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         photoURL: "",
         createdAt: serverTimestamp(),
       });
@@ -69,103 +75,125 @@ export default function Register() {
       await auth.signOut();
 
       // ✅ mandar a pantalla de verificación
-      router.replace("/verify-email");
+      router.replace({
+        pathname: "/verify-email",
+        params: { email: email.trim().toLowerCase() },
+      });
     } catch (e: any) {
-      Alert.alert("Error", e?.message ?? "No se pudo registrar");
+      console.log("REGISTER_ERROR:", e);
+      Alert.alert(
+        "No se pudo crear la cuenta",
+        e?.message ?? "Error desconocido",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={styles.container}>
-          <Pressable onPress={() => router.replace("/login")}>
-            <Text style={styles.back}>← Volver</Text>
-          </Pressable>
-
-          <View style={styles.hero}>
-            <Text style={styles.title}>Crear cuenta</Text>
-            <Text style={styles.subtitle}>
-              Crea tu cuenta para empezar a chatear.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={{ gap: 14 }}>
-              <Field
-                label="Nombre"
-                placeholder="Tu nombre"
-                value={name}
-                onChangeText={setName}
-              />
-              <Field
-                label="Correo"
-                placeholder="nombre@correo.com"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-              />
-              <Field
-                label="Contraseña"
-                placeholder="••••••••"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-              <Field
-                label="Confirmar contraseña"
-                placeholder="••••••••"
-                secureTextEntry
-                value={password2}
-                onChangeText={setPassword2}
-              />
-
-              <PrimaryButton
-                title={loading ? "Creando…" : "Crear cuenta"}
-                onPress={onRegister}
-                loading={loading}
-              />
-
-              <Pressable onPress={() => router.replace("/login")}>
-                <Text style={styles.secondaryLink}>
-                  ¿Ya tienes cuenta?{" "}
-                  <Text style={{ color: Brand.colors.text, fontWeight: "800" }}>
-                    Iniciar sesión
-                  </Text>
-                </Text>
-              </Pressable>
-            </View>
-          </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: Brand.colors.bg }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.brand}>Zypher</Text>
+          <Text style={styles.subtitle}>Crea tu cuenta</Text>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        <View style={styles.card}>
+          <Field
+            label="Nombre"
+            value={name}
+            onChangeText={setName}
+            placeholder="Tu nombre"
+          />
+          <Field
+            label="Correo"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="correo@ejemplo.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <Field
+            label="Contraseña"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Mínimo 6 caracteres"
+            secureTextEntry
+          />
+          <Field
+            label="Confirmar contraseña"
+            value={confirm}
+            onChangeText={setConfirm}
+            placeholder="Repite tu contraseña"
+            secureTextEntry
+          />
+
+          <PrimaryButton
+            title={loading ? "Creando..." : "Crear cuenta"}
+            onPress={handleRegister}
+            disabled={!canSubmit || loading}
+          />
+
+          <Pressable
+            onPress={() => router.replace("/login")}
+            style={styles.link}
+          >
+            <Text style={styles.linkText}>
+              ¿Ya tienes cuenta?{" "}
+              <Text style={styles.linkStrong}>Inicia sesión</Text>
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.footer}>Zypher · Chat y llamadas</Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Brand.colors.bg },
-  container: { flex: 1, padding: 18, gap: 14 },
-  back: { color: Brand.colors.muted, fontWeight: "800" },
-  hero: { marginTop: 6, gap: 6 },
-  title: { color: Brand.colors.text, fontSize: 26, fontWeight: "900" },
-  subtitle: { color: Brand.colors.muted, lineHeight: 20 },
+  container: {
+    padding: 20,
+    paddingTop: 40,
+    gap: 18,
+  },
+  header: {
+    gap: 6,
+  },
+  brand: {
+    fontSize: 34,
+    fontWeight: "800",
+    color: Brand.colors.text,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: Brand.colors.muted,
+  },
   card: {
     backgroundColor: Brand.colors.card,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
     borderWidth: 1,
     borderColor: Brand.colors.border,
-    borderRadius: Brand.radius.lg,
-    padding: 16,
-    marginTop: 6,
   },
-  secondaryLink: {
+  link: {
+    marginTop: 6,
+    alignItems: "center",
+  },
+  linkText: {
     color: Brand.colors.muted,
+  },
+  linkStrong: {
+    color: Brand.colors.text,
+    fontWeight: "700",
+  },
+  footer: {
     textAlign: "center",
-    marginTop: 10,
+    color: Brand.colors.muted,
+    marginTop: 8,
   },
 });

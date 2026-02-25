@@ -10,21 +10,24 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
-export default function Login() {
+export default function LoginScreen() {
   const router = useRouter();
+
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  const onLogin = async () => {
-    if (!email.trim() || !password) {
-      Alert.alert("Faltan datos", "Escribe tu correo y contraseña.");
+  const canSubmit = email.trim().includes("@") && password.length >= 6;
+
+  const handleLogin = async () => {
+    if (!canSubmit) {
+      Alert.alert("Revisa tus datos", "Ingresa correo y contraseña válidos.");
       return;
     }
 
@@ -32,143 +35,130 @@ export default function Login() {
       setLoading(true);
       const cred = await signInWithEmailAndPassword(
         auth,
-        email.trim(),
+        email.trim().toLowerCase(),
         password,
       );
 
-      // ✅ refresca estado para asegurar emailVerified actualizado
-      await cred.user.reload();
-
+      // ✅ si no está verificado, mándalo a verify-email
       if (!cred.user.emailVerified) {
         await auth.signOut();
-        router.replace("/verify-email");
+        router.replace({
+          pathname: "/verify-email",
+          params: { email: email.trim().toLowerCase() },
+        });
         return;
       }
 
       router.replace("/(tabs)");
     } catch (e: any) {
-      Alert.alert("Error", e?.message ?? "No se pudo iniciar sesión");
+      console.log("LOGIN_ERROR:", e);
+      Alert.alert(
+        "No se pudo iniciar sesión",
+        e?.message ?? "Error desconocido",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={styles.container}>
-          <View style={styles.hero}>
-            <View style={styles.logoDot} />
-            <Text style={styles.title}>Zypher</Text>
-            <Text style={styles.subtitle}>Chatea y llama con tu equipo</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Iniciar sesión</Text>
-            <Text style={styles.cardHint}>Usa tu correo o el registrado.</Text>
-
-            <View style={{ gap: 14, marginTop: 18 }}>
-              <Field
-                label="Correo"
-                placeholder="nombre@empresa.com"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-              />
-              <Field
-                label="Contraseña"
-                placeholder="••••••••"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-
-              <PrimaryButton
-                title={loading ? "Entrando…" : "Entrar"}
-                onPress={onLogin}
-                loading={loading}
-              />
-
-              <Pressable onPress={() => router.push("/forgot-password")}>
-                <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
-              </Pressable>
-
-              <View style={styles.divider} />
-
-              <Pressable onPress={() => router.replace("/register")}>
-                <Text style={styles.secondaryLink}>
-                  ¿No tienes cuenta?{" "}
-                  <Text style={{ color: Brand.colors.text, fontWeight: "800" }}>
-                    Crear cuenta
-                  </Text>
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <Text style={styles.footer}>
-            © {new Date().getFullYear()} Zypher · Chat y llamadasntas
-          </Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: Brand.colors.bg }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.brand}>Zypher</Text>
+          <Text style={styles.subtitle}>Inicia sesión</Text>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        <View style={styles.card}>
+          <Field
+            label="Correo"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="correo@ejemplo.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <Field
+            label="Contraseña"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Tu contraseña"
+            secureTextEntry
+          />
+
+          <PrimaryButton
+            title={loading ? "Entrando..." : "Entrar"}
+            onPress={handleLogin}
+            disabled={!canSubmit || loading}
+          />
+
+          <Pressable
+            onPress={() => router.push("/forgot-password")}
+            style={styles.link}
+          >
+            <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.replace("/register")}
+            style={styles.link}
+          >
+            <Text style={styles.linkText}>
+              ¿No tienes cuenta?{" "}
+              <Text style={styles.linkStrong}>Regístrate</Text>
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.footer}>Zypher · Chat y llamadas</Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Brand.colors.bg },
   container: {
-    flex: 1,
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 16,
+    padding: 20,
+    paddingTop: 40,
+    gap: 18,
   },
-  hero: { paddingVertical: 16, gap: 6 },
-  logoDot: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: Brand.colors.primary,
-    opacity: 0.95,
-    marginBottom: 10,
-  },
-  title: {
-    color: Brand.colors.text,
-    fontSize: 26,
-    fontWeight: "900",
-    letterSpacing: 0.3,
-  },
-  subtitle: { color: Brand.colors.muted, fontSize: 14, fontWeight: "600" },
-  card: {
-    backgroundColor: Brand.colors.card,
-    borderRadius: Brand.radius.lg,
-    borderWidth: 1,
-    borderColor: Brand.colors.border,
-    padding: 18,
+  header: {
     gap: 6,
   },
-  cardTitle: { color: Brand.colors.text, fontSize: 18, fontWeight: "900" },
-  cardHint: { color: Brand.colors.muted, fontSize: 13 },
-  link: {
-    color: Brand.colors.primary,
+  brand: {
+    fontSize: 34,
     fontWeight: "800",
-    textAlign: "center",
-    marginTop: 2,
+    color: Brand.colors.text,
   },
-  secondaryLink: {
+  subtitle: {
+    fontSize: 16,
     color: Brand.colors.muted,
+  },
+  card: {
+    backgroundColor: Brand.colors.card,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+  },
+  link: {
+    marginTop: 6,
+    alignItems: "center",
+  },
+  linkText: {
+    color: Brand.colors.muted,
+  },
+  linkStrong: {
+    color: Brand.colors.text,
     fontWeight: "700",
+  },
+  footer: {
     textAlign: "center",
+    color: Brand.colors.muted,
+    marginTop: 8,
   },
-  divider: {
-    height: 1,
-    backgroundColor: Brand.colors.border,
-    marginVertical: 8,
-  },
-  footer: { color: Brand.colors.subtle, textAlign: "center", fontSize: 12 },
 });
