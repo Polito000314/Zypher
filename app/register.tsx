@@ -1,4 +1,11 @@
-import React from 'react';
+import { Field } from "@/components/ui/Field";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { Brand } from "@/constants/brand";
+import { auth, db } from "@/lib/firebase";
+import { useRouter } from "expo-router";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import React from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -8,59 +15,63 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
-import { Brand } from '@/constants/brand';
-import { Field } from '@/components/ui/Field';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+} from "react-native";
 
 export default function Register() {
   const router = useRouter();
-  const [name, setName] = React.useState('');
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [password2, setPassword2] = React.useState('');
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [password2, setPassword2] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   const onRegister = async () => {
     if (!name.trim()) {
-      Alert.alert('Faltan datos', 'Escribe tu nombre.');
+      Alert.alert("Faltan datos", "Escribe tu nombre.");
       return;
     }
     if (!email.trim() || !password) {
-      Alert.alert('Faltan datos', 'Completa correo y contraseña.');
+      Alert.alert("Faltan datos", "Completa correo y contraseña.");
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Contraseña débil', 'Usa al menos 6 caracteres.');
+      Alert.alert("Contraseña débil", "Usa al menos 6 caracteres.");
       return;
     }
     if (password !== password2) {
-      Alert.alert('No coincide', 'Las contraseñas no coinciden.');
+      Alert.alert("No coincide", "Las contraseñas no coinciden.");
       return;
     }
 
     try {
       setLoading(true);
-      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const cred = await createUserWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
 
       // (Opcional) nombre en Auth
       await updateProfile(cred.user, { displayName: name.trim() });
 
       // Perfil en Firestore (base para chats)
-      await setDoc(doc(db, 'users', cred.user.uid), {
+      await setDoc(doc(db, "users", cred.user.uid), {
         name: name.trim(),
         email: email.trim(),
-        photoURL: '',
+        photoURL: "",
         createdAt: serverTimestamp(),
       });
 
-      router.replace('/(tabs)');
+      // ✅ mandar verificación
+      await sendEmailVerification(cred.user);
+
+      // ✅ cerrar sesión para obligar verificación antes de entrar
+      await auth.signOut();
+
+      // ✅ mandar a pantalla de verificación
+      router.replace("/verify-email");
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo registrar');
+      Alert.alert("Error", e?.message ?? "No se pudo registrar");
     } finally {
       setLoading(false);
     }
@@ -70,16 +81,18 @@ export default function Register() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.container}>
-          <Pressable onPress={() => router.replace('/login')}>
+          <Pressable onPress={() => router.replace("/login")}>
             <Text style={styles.back}>← Volver</Text>
           </Pressable>
 
           <View style={styles.hero}>
             <Text style={styles.title}>Crear cuenta</Text>
-            <Text style={styles.subtitle}>Crea tu cuenta para empezar a chatear.</Text>
+            <Text style={styles.subtitle}>
+              Crea tu cuenta para empezar a chatear.
+            </Text>
           </View>
 
           <View style={styles.card}>
@@ -114,15 +127,15 @@ export default function Register() {
               />
 
               <PrimaryButton
-                title={loading ? 'Creando…' : 'Crear cuenta'}
+                title={loading ? "Creando…" : "Crear cuenta"}
                 onPress={onRegister}
                 loading={loading}
               />
 
-              <Pressable onPress={() => router.replace('/login')}>
+              <Pressable onPress={() => router.replace("/login")}>
                 <Text style={styles.secondaryLink}>
-                  ¿Ya tienes cuenta?{' '}
-                  <Text style={{ color: Brand.colors.text, fontWeight: '800' }}>
+                  ¿Ya tienes cuenta?{" "}
+                  <Text style={{ color: Brand.colors.text, fontWeight: "800" }}>
                     Iniciar sesión
                   </Text>
                 </Text>
@@ -138,9 +151,9 @@ export default function Register() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Brand.colors.bg },
   container: { flex: 1, padding: 18, gap: 14 },
-  back: { color: Brand.colors.muted, fontWeight: '800' },
+  back: { color: Brand.colors.muted, fontWeight: "800" },
   hero: { marginTop: 6, gap: 6 },
-  title: { color: Brand.colors.text, fontSize: 26, fontWeight: '900' },
+  title: { color: Brand.colors.text, fontSize: 26, fontWeight: "900" },
   subtitle: { color: Brand.colors.muted, lineHeight: 20 },
   card: {
     backgroundColor: Brand.colors.card,
@@ -150,5 +163,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 6,
   },
-  secondaryLink: { color: Brand.colors.muted, textAlign: 'center', marginTop: 10 },
+  secondaryLink: {
+    color: Brand.colors.muted,
+    textAlign: "center",
+    marginTop: 10,
+  },
 });

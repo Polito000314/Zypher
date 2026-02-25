@@ -1,7 +1,8 @@
-import { Stack, usePathname, useRouter } from 'expo-router';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import React from 'react';
-import { auth } from '@/lib/firebase';
+import { LocaleProvider } from "@/contexts/LocaleContext";
+import { auth } from "@/lib/firebase";
+import { Stack, usePathname, useRouter } from "expo-router";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import React from "react";
 
 export default function RootLayout() {
   const router = useRouter();
@@ -21,16 +22,36 @@ export default function RootLayout() {
   React.useEffect(() => {
     if (!ready) return;
 
-    const authRoutes = ['/login', '/register', '/forgot-password'];
+    const authRoutes = [
+      "/login",
+      "/register",
+      "/forgot-password",
+      "/verify-email",
+    ];
     const inAuth = authRoutes.includes(pathname);
 
+    // 1) Si no hay user, sólo puede estar en auth routes
     if (!user && !inAuth) {
-      router.replace('/login');
+      router.replace("/login");
       return;
     }
 
-    if (user && inAuth) {
-      router.replace('/(tabs)');
+    // 2) Si hay user pero NO verificado -> forzar pantalla verify-email
+    if (user && !user.emailVerified && pathname !== "/verify-email") {
+      router.replace("/verify-email");
+      return;
+    }
+
+    // 3) Si hay user verificado y está en login/register -> mandarlo a tabs
+    if (
+      user &&
+      user.emailVerified &&
+      (pathname === "/login" ||
+        pathname === "/register" ||
+        pathname === "/forgot-password" ||
+        pathname === "/verify-email")
+    ) {
+      router.replace("/(tabs)");
       return;
     }
   }, [ready, user, pathname]);
@@ -38,14 +59,17 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }} initialRouteName="login">
-      <Stack.Screen name="login" />
-      <Stack.Screen name="register" />
-      <Stack.Screen name="forgot-password" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="new-chat" />
-      <Stack.Screen name="chat/[chatId]" />
-      <Stack.Screen name="modal" />
-    </Stack>
+    <LocaleProvider>
+      <Stack screenOptions={{ headerShown: false }} initialRouteName="login">
+        <Stack.Screen name="login" />
+        <Stack.Screen name="register" />
+        <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="verify-email" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="new-chat" />
+        <Stack.Screen name="chat/[chatId]" />
+        <Stack.Screen name="modal" />
+      </Stack>
+    </LocaleProvider>
   );
 }

@@ -1,4 +1,10 @@
-import React from 'react';
+import { Field } from "@/components/ui/Field";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { Brand } from "@/constants/brand";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "expo-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import React from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -8,32 +14,40 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { Brand } from '@/constants/brand';
-import { Field } from '@/components/ui/Field';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+} from "react-native";
 
 export default function Login() {
   const router = useRouter();
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   const onLogin = async () => {
     if (!email.trim() || !password) {
-      Alert.alert('Faltan datos', 'Escribe tu correo y contraseña.');
+      Alert.alert("Faltan datos", "Escribe tu correo y contraseña.");
       return;
     }
 
     try {
       setLoading(true);
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      router.replace('/(tabs)');
+      const cred = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
+
+      // ✅ refresca estado para asegurar emailVerified actualizado
+      await cred.user.reload();
+
+      if (!cred.user.emailVerified) {
+        await auth.signOut();
+        router.replace("/verify-email");
+        return;
+      }
+
+      router.replace("/(tabs)");
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo iniciar sesión');
+      Alert.alert("Error", e?.message ?? "No se pudo iniciar sesión");
     } finally {
       setLoading(false);
     }
@@ -43,7 +57,7 @@ export default function Login() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.container}>
           <View style={styles.hero}>
@@ -74,21 +88,21 @@ export default function Login() {
               />
 
               <PrimaryButton
-                title={loading ? 'Entrando…' : 'Entrar'}
+                title={loading ? "Entrando…" : "Entrar"}
                 onPress={onLogin}
                 loading={loading}
               />
 
-              <Pressable onPress={() => router.push('/forgot-password')}>
+              <Pressable onPress={() => router.push("/forgot-password")}>
                 <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
               </Pressable>
 
               <View style={styles.divider} />
 
-              <Pressable onPress={() => router.replace('/register')}>
+              <Pressable onPress={() => router.replace("/register")}>
                 <Text style={styles.secondaryLink}>
-                  ¿No tienes cuenta?{' '}
-                  <Text style={{ color: Brand.colors.text, fontWeight: '800' }}>
+                  ¿No tienes cuenta?{" "}
+                  <Text style={{ color: Brand.colors.text, fontWeight: "800" }}>
                     Crear cuenta
                   </Text>
                 </Text>
@@ -126,10 +140,10 @@ const styles = StyleSheet.create({
   title: {
     color: Brand.colors.text,
     fontSize: 26,
-    fontWeight: '900',
+    fontWeight: "900",
     letterSpacing: 0.3,
   },
-  subtitle: { color: Brand.colors.muted, fontSize: 14, fontWeight: '600' },
+  subtitle: { color: Brand.colors.muted, fontSize: 14, fontWeight: "600" },
   card: {
     backgroundColor: Brand.colors.card,
     borderRadius: Brand.radius.lg,
@@ -138,15 +152,23 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 6,
   },
-  cardTitle: { color: Brand.colors.text, fontSize: 18, fontWeight: '900' },
+  cardTitle: { color: Brand.colors.text, fontSize: 18, fontWeight: "900" },
   cardHint: { color: Brand.colors.muted, fontSize: 13 },
   link: {
     color: Brand.colors.primary,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontWeight: "800",
+    textAlign: "center",
     marginTop: 2,
   },
-  secondaryLink: { color: Brand.colors.muted, fontWeight: '700', textAlign: 'center' },
-  divider: { height: 1, backgroundColor: Brand.colors.border, marginVertical: 8 },
-  footer: { color: Brand.colors.subtle, textAlign: 'center', fontSize: 12 },
+  secondaryLink: {
+    color: Brand.colors.muted,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Brand.colors.border,
+    marginVertical: 8,
+  },
+  footer: { color: Brand.colors.subtle, textAlign: "center", fontSize: 12 },
 });
