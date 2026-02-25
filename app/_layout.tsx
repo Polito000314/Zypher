@@ -1,12 +1,13 @@
-import { LocaleProvider } from "@/contexts/LocaleContext";
+import { LocaleProvider, useLocale } from "@/contexts/LocaleContext";
 import { auth } from "@/lib/firebase";
 import { Stack, usePathname, useRouter } from "expo-router";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import React from "react";
 
-export default function RootLayout() {
+function RootStack() {
   const router = useRouter();
   const pathname = usePathname();
+  const { locale } = useLocale(); // ✅ para reconstruir Stack cuando cambie idioma
 
   const [user, setUser] = React.useState<User | null>(null);
   const [ready, setReady] = React.useState(false);
@@ -36,13 +37,13 @@ export default function RootLayout() {
       return;
     }
 
-    // 2) Si hay user pero NO verificado -> forzar pantalla verify-email
+    // 2) Si hay user pero NO verificado -> forzar verify-email
     if (user && !user.emailVerified && pathname !== "/verify-email") {
       router.replace("/verify-email");
       return;
     }
 
-    // 3) Si hay user verificado y está en login/register -> mandarlo a tabs
+    // 3) Si hay user verificado y está en auth -> mandarlo a tabs
     if (
       user &&
       user.emailVerified &&
@@ -59,17 +60,27 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
+    <Stack
+      key={locale} // ✅ rebuild del Stack al cambiar idioma
+      screenOptions={{ headerShown: false }}
+      initialRouteName="login"
+    >
+      <Stack.Screen name="login" />
+      <Stack.Screen name="register" />
+      <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="verify-email" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="new-chat" />
+      <Stack.Screen name="chat/[chatId]" />
+      <Stack.Screen name="modal" />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
     <LocaleProvider>
-      <Stack screenOptions={{ headerShown: false }} initialRouteName="login">
-        <Stack.Screen name="login" />
-        <Stack.Screen name="register" />
-        <Stack.Screen name="forgot-password" />
-        <Stack.Screen name="verify-email" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="new-chat" />
-        <Stack.Screen name="chat/[chatId]" />
-        <Stack.Screen name="modal" />
-      </Stack>
+      <RootStack />
     </LocaleProvider>
   );
 }

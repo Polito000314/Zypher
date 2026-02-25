@@ -1,12 +1,16 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
-import { Brand } from '@/constants/brand';
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { HapticTab } from "@/components/haptic-tab";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Brand } from "@/constants/brand";
+import { useLocale } from "@/contexts/LocaleContext";
+import { Tabs } from "expo-router";
+import React from "react";
 
 export default function TabLayout() {
+  const { t, locale } = useLocale();
+
   return (
     <Tabs
+      key={locale} // ✅ fuerza rebuild al cambiar idioma
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
@@ -21,7 +25,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Chats',
+          title: t("chats"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="message.fill" color={color} />
           ),
@@ -30,7 +34,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="calls"
         options={{
-          title: 'Llamadas',
+          title: t("calls"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="phone.fill" color={color} />
           ),
@@ -39,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="perfil"
         options={{
-          title: 'Perfil',
+          title: t("profile"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="person.fill" color={color} />
           ),
