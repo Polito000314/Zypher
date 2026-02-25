@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -72,16 +71,17 @@ export default function NewChat() {
     const chatId = getChatId(uid, other.id);
 
     const chatRef = doc(db, "chats", chatId);
-    const existing = await getDoc(chatRef);
 
-    if (!existing.exists()) {
-      await setDoc(chatRef, {
+    await setDoc(
+      chatRef,
+      {
         members: [uid, other.id],
         lastMessage: "",
         lastMessageAt: serverTimestamp(),
         createdAt: serverTimestamp(),
-      });
-    }
+      },
+      { merge: true },
+    );
 
     router.push(`/chat/${chatId}`);
   };
