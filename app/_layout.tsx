@@ -1,28 +1,59 @@
 import { LocaleProvider, useLocale } from "@/contexts/LocaleContext";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { Stack, usePathname, useRouter } from "expo-router";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import React from "react";
+
+const ADMIN_EMAIL = "oscarpaulolivaresleal@gmail.com";
+
+async function isDisabledUser(uid: string) {
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    return snap.exists() && snap.data()?.disabled === true;
+  } catch {
+    return false;
+  }
+}
 
 function RootStack() {
   const router = useRouter();
   const pathname = usePathname();
-  const { locale } = useLocale(); // ✅ para reconstruir Stack cuando cambie idioma
+  const { locale } = useLocale();
 
   const [user, setUser] = React.useState<User | null>(null);
   const [ready, setReady] = React.useState(false);
+  const [isAdmin, setIsAdmin] = React.useState(false);
 
   React.useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       setReady(true);
+
+      if (!u) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const admin = (u.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      setIsAdmin(admin);
+
+      // Si NO es admin, checar si está disabled
+      if (!admin) {
+        const disabled = await isDisabledUser(u.uid);
+        if (disabled) {
+          await signOut(auth);
+        }
+      }
     });
+
     return unsub;
   }, []);
 
   React.useEffect(() => {
     if (!ready) return;
 
+    // ✅ IMPORTANTE: estas rutas deben incluir /register
     const authRoutes = [
       "/login",
       "/register",
@@ -31,37 +62,45 @@ function RootStack() {
     ];
     const inAuth = authRoutes.includes(pathname);
 
-    // 1) Si no hay user, sólo puede estar en auth routes
+    // No user -> permitir SOLO rutas auth
     if (!user && !inAuth) {
       router.replace("/login");
       return;
     }
 
-    // 2) Si hay user pero NO verificado -> forzar verify-email
+    // Con user no verificado -> verify-email
     if (user && !user.emailVerified && pathname !== "/verify-email") {
       router.replace("/verify-email");
       return;
     }
 
-    // 3) Si hay user verificado y está en auth -> mandarlo a tabs
+    // Admin verificado -> /admin siempre
+    if (user && user.emailVerified && isAdmin) {
+      if (pathname !== "/admin") router.replace("/admin");
+      return;
+    }
+
+    // User normal verificado -> tabs (si está en auth o admin)
     if (
       user &&
       user.emailVerified &&
+      !isAdmin &&
       (pathname === "/login" ||
         pathname === "/register" ||
         pathname === "/forgot-password" ||
-        pathname === "/verify-email")
+        pathname === "/verify-email" ||
+        pathname === "/admin")
     ) {
       router.replace("/(tabs)");
       return;
     }
-  }, [ready, user, pathname]);
+  }, [ready, user, pathname, isAdmin]);
 
   if (!ready) return null;
 
   return (
     <Stack
-      key={locale} // ✅ rebuild del Stack al cambiar idioma
+      key={locale}
       screenOptions={{ headerShown: false }}
       initialRouteName="login"
     >
@@ -69,6 +108,7 @@ function RootStack() {
       <Stack.Screen name="register" />
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="verify-email" />
+      <Stack.Screen name="admin" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="new-chat" />
       <Stack.Screen name="chat/[chatId]" />

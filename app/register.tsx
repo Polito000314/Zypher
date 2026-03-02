@@ -37,6 +37,9 @@ export default function RegisterScreen() {
     password === confirm;
 
   const handleRegister = async () => {
+    const cleanName = name.trim();
+    const emailLower = email.trim().toLowerCase();
+
     if (!canSubmit) {
       Alert.alert(
         "Revisa tus datos",
@@ -50,35 +53,30 @@ export default function RegisterScreen() {
 
       const cred = await createUserWithEmailAndPassword(
         auth,
-        email.trim().toLowerCase(),
+        emailLower,
         password,
       );
 
-      // ✅ set displayName
-      await updateProfile(cred.user, {
-        displayName: name.trim(),
-      });
+      // Nombre en Auth
+      await updateProfile(cred.user, { displayName: cleanName });
 
-      // ✅ guardar perfil en Firestore
+      // Crear doc en Firestore (para admin y bloqueo)
       await setDoc(doc(db, "users", cred.user.uid), {
         uid: cred.user.uid,
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        photoURL: "",
+        email: emailLower,
+        displayName: cleanName,
         createdAt: serverTimestamp(),
+        disabled: false,
+        role: "user",
       });
 
-      // ✅ mandar verificación
+      // Enviar verificación
       await sendEmailVerification(cred.user);
 
-      // ✅ cerrar sesión para obligar verificación antes de entrar
-      await auth.signOut();
+      Alert.alert("Listo", "Te enviamos un correo de verificación.");
 
-      // ✅ mandar a pantalla de verificación
-      router.replace({
-        pathname: "/verify-email",
-        params: { email: email.trim().toLowerCase() },
-      });
+      // Ir a verify-email (tu pantalla usa auth.currentUser)
+      router.replace("/verify-email");
     } catch (e: any) {
       console.log("REGISTER_ERROR:", e);
       Alert.alert(
@@ -160,9 +158,7 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     gap: 18,
   },
-  header: {
-    gap: 6,
-  },
+  header: { gap: 6 },
   brand: {
     fontSize: 34,
     fontWeight: "800",
@@ -180,17 +176,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Brand.colors.border,
   },
-  link: {
-    marginTop: 6,
-    alignItems: "center",
-  },
-  linkText: {
-    color: Brand.colors.muted,
-  },
-  linkStrong: {
-    color: Brand.colors.text,
-    fontWeight: "700",
-  },
+  link: { marginTop: 6, alignItems: "center" },
+  linkText: { color: Brand.colors.muted },
+  linkStrong: { color: Brand.colors.text, fontWeight: "700" },
   footer: {
     textAlign: "center",
     color: Brand.colors.muted,
