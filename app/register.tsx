@@ -179,7 +179,9 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     gap: 18,
   },
-  header: { gap: 6 },
+  header: {
+    gap: 6,
+  },
   brand: {
     fontSize: 34,
     fontWeight: "800",
@@ -197,9 +199,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Brand.colors.border,
   },
-  link: { marginTop: 6, alignItems: "center" },
-  linkText: { color: Brand.colors.muted },
-  linkStrong: { color: Brand.colors.text, fontWeight: "700" },
+  link: {
+    marginTop: 6,
+    alignItems: "center",
+  },
+  linkText: {
+    color: Brand.colors.muted,
+  },
+  linkStrong: {
+    color: Brand.colors.text,
+    fontWeight: "700",
+  },
   footer: {
     textAlign: "center",
     color: Brand.colors.muted,

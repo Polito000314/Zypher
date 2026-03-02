@@ -3,12 +3,12 @@ import { ThemedView } from "@/components/themed-view";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { auth, db } from "@/lib/firebase";
 import {
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  updateDoc,
+    collection,
+    doc,
+    onSnapshot,
+    orderBy,
+    query,
+    updateDoc,
 } from "firebase/firestore";
 import React from "react";
 import { Alert, FlatList, StyleSheet, View } from "react-native";
