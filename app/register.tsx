@@ -3,12 +3,8 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { Brand } from "@/constants/brand";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "expo-router";
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  updateProfile,
-} from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import React from "react";
 import {
   Alert,
@@ -21,68 +17,97 @@ import {
   View,
 } from "react-native";
 
-export default function RegisterScreen() {
+const ADMIN_EMAIL = "oscarpaulolivaresleal@gmail.com";
+
+export default function LoginScreen() {
   const router = useRouter();
 
-  const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [confirm, setConfirm] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  const canSubmit =
-    name.trim().length >= 2 &&
-    email.trim().includes("@") &&
-    password.length >= 6 &&
-    password === confirm;
+  const canSubmit = email.trim().includes("@") && password.length >= 6;
 
-  const handleRegister = async () => {
+  const ensureUserDoc = async (
+    uid: string,
+    emailLower: string,
+    displayName?: string | null,
+  ) => {
+    // Crea/actualiza doc si falta (merge) — útil para usuarios viejos
+    await setDoc(
+      doc(db, "users", uid),
+      {
+        uid,
+        email: emailLower,
+        name: displayName || "",
+        displayName: displayName || "",
+        disabled: false,
+        role: "user",
+        createdAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  };
+
+  const handleLogin = async () => {
     if (!canSubmit) {
-      Alert.alert(
-        "Revisa tus datos",
-        "Verifica los campos antes de continuar.",
-      );
+      Alert.alert("Revisa tus datos", "Ingresa correo y contraseña válidos.");
       return;
     }
+
+    const emailLower = email.trim().toLowerCase();
 
     try {
       setLoading(true);
 
-      const cred = await createUserWithEmailAndPassword(
-        auth,
-        email.trim().toLowerCase(),
-        password,
-      );
+      const cred = await signInWithEmailAndPassword(auth, emailLower, password);
 
-      // ✅ set displayName
-      await updateProfile(cred.user, {
-        displayName: name.trim(),
-      });
+      // ✅ si no está verificado, mándalo a verify-email
+      if (!cred.user.emailVerified) {
+        await signOut(auth);
+        router.replace({
+          pathname: "/verify-email",
+          params: { email: emailLower },
+        });
+        return;
+      }
 
-      // ✅ guardar perfil en Firestore
-      await setDoc(doc(db, "users", cred.user.uid), {
-        uid: cred.user.uid,
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        photoURL: "",
-        createdAt: serverTimestamp(),
-      });
+      const isAdmin =
+        (cred.user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-      // ✅ mandar verificación
-      await sendEmailVerification(cred.user);
+      // ✅ Admin: directo a /admin
+      if (isAdmin) {
+        // Asegura que tenga doc para que salga en el panel si quieres
+        await ensureUserDoc(cred.user.uid, emailLower, cred.user.displayName);
+        router.replace("/admin");
+        return;
+      }
 
-      // ✅ cerrar sesión para obligar verificación antes de entrar
-      await auth.signOut();
+      // ✅ Usuario normal: verificar si está disabled en Firestore
+      const snap = await getDoc(doc(db, "users", cred.user.uid));
 
-      // ✅ mandar a pantalla de verificación
-      router.replace({
-        pathname: "/verify-email",
-        params: { email: email.trim().toLowerCase() },
-      });
+      if (!snap.exists()) {
+        // si no existe doc, lo creamos
+        await ensureUserDoc(cred.user.uid, emailLower, cred.user.displayName);
+        router.replace("/(tabs)");
+        return;
+      }
+
+      const disabled = snap.data()?.disabled === true;
+      if (disabled) {
+        await signOut(auth);
+        Alert.alert(
+          "Cuenta bloqueada",
+          "Tu cuenta fue deshabilitada por el administrador.",
+        );
+        return;
+      }
+
+      router.replace("/(tabs)");
     } catch (e: any) {
-      console.log("REGISTER_ERROR:", e);
+      console.log("LOGIN_ERROR:", e);
       Alert.alert(
-        "No se pudo crear la cuenta",
+        "No se pudo iniciar sesión",
         e?.message ?? "Error desconocido",
       );
     } finally {
@@ -98,16 +123,10 @@ export default function RegisterScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.brand}>Zypher</Text>
-          <Text style={styles.subtitle}>Crea tu cuenta</Text>
+          <Text style={styles.subtitle}>Inicia sesión</Text>
         </View>
 
         <View style={styles.card}>
-          <Field
-            label="Nombre"
-            value={name}
-            onChangeText={setName}
-            placeholder="Tu nombre"
-          />
           <Field
             label="Correo"
             value={email}
@@ -120,30 +139,30 @@ export default function RegisterScreen() {
             label="Contraseña"
             value={password}
             onChangeText={setPassword}
-            placeholder="Mínimo 6 caracteres"
-            secureTextEntry
-          />
-          <Field
-            label="Confirmar contraseña"
-            value={confirm}
-            onChangeText={setConfirm}
-            placeholder="Repite tu contraseña"
+            placeholder="Tu contraseña"
             secureTextEntry
           />
 
           <PrimaryButton
-            title={loading ? "Creando..." : "Crear cuenta"}
-            onPress={handleRegister}
+            title={loading ? "Entrando..." : "Entrar"}
+            onPress={handleLogin}
             disabled={!canSubmit || loading}
           />
 
           <Pressable
-            onPress={() => router.replace("/login")}
+            onPress={() => router.push("/forgot-password")}
+            style={styles.link}
+          >
+            <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.replace("/register")}
             style={styles.link}
           >
             <Text style={styles.linkText}>
-              ¿Ya tienes cuenta?{" "}
-              <Text style={styles.linkStrong}>Inicia sesión</Text>
+              ¿No tienes cuenta?{" "}
+              <Text style={styles.linkStrong}>Regístrate</Text>
             </Text>
           </Pressable>
         </View>
